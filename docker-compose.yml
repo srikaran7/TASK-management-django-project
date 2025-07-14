@@ -1,0 +1,40 @@
+services:
+  web:
+    build: .
+    container_name: projects-web
+    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+      - celery_worker
+      - celery_beat
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+  celery_worker:
+    build: .
+    command: celery -A core worker --loglevel=info
+    depends_on:
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    volumes:
+      - .:/app
+
+  celery_beat:
+    build: .
+    command: celery -A core beat --loglevel=info
+    depends_on:
+      - redis
+      - celery_worker
+    volumes:
+      - .:/app
